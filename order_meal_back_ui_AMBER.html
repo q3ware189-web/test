@@ -436,7 +436,10 @@
     </div>
 
     <script>
-        // Mock Data inspired by the provided Google Sheet
+        // 【重要】請先按照說明部署 Google Apps Script，然後將產生的網址貼到這裡：
+        const GOOGLE_APP_SCRIPT_URL = '請將您的網頁應用程式URL貼在這裡';
+
+        // Mock Data inspired by the provided Google Sheet (保留原資料供預覽，但未來會改成讀取/寫入遠端)
         let orders = [
             { id: 1, name: "高念平", status: "OK", mainDish: "油蔥舒肥雞霸氣會議餐盒", drink: "桂香青檸粉粿 無糖微冰", note: "冬天不洗澡也要洗衣服吧" },
             { id: 2, name: "游國楷", status: "OK", mainDish: "原味椒鹽炸雞霸氣會議餐盒", drink: "桂香青檸粉粿 無糖微冰", note: "" },
@@ -496,6 +499,30 @@
             modalBackdrop.classList.remove('active');
         }
 
+        // 發送資料到 Google Apps Script 同步 Excel
+        function syncToGoogleSheet(action, orderData) {
+            if (!GOOGLE_APP_SCRIPT_URL.startsWith('http')) {
+                console.log("尚未設定 Google Apps Script URL，僅更新本地畫面。");
+                return;
+            }
+
+            const payload = {
+                action: action,
+                ...orderData
+            };
+            
+            // 使用 fetch 送出 POST 請求到 Apps Script
+            fetch(GOOGLE_APP_SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload),
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' } // 避開複雜的 CORS 問題
+            }).then(response => {
+                console.log("資料同步請求已送出", response);
+            }).catch(error => {
+                console.error("同步至 Google Sheets 時發生錯誤: ", error);
+            });
+        }
+
         function saveOrder(e) {
             e.preventDefault();
             
@@ -512,12 +539,16 @@
                 // Edit
                 const index = orders.findIndex(o => o.id === parseInt(editId));
                 if(index > -1) {
-                    orders[index] = { ...orders[index], ...newOrder };
+                    orders[index] = { ...orders[index], ...newOrder, id: parseInt(editId) };
                 }
             } else {
                 // Add
-                orders.unshift({ id: currentId++, ...newOrder });
+                newOrder.id = currentId++;
+                orders.unshift(newOrder);
             }
+
+            // 同步到 Google Sheet
+            syncToGoogleSheet("save", newOrder);
 
             closeModal();
             renderTable();
@@ -540,8 +571,13 @@
         }
 
         function deleteOrder(id) {
-            if(confirm('確定要刪除這筆訂單嗎？ (刪除後無法恢復)')) {
+            if(confirm('確定要刪除這筆訂單嗎？ (刪除後將同步更新 Excel)')) {
+                const orderToDelete = orders.find(o => o.id === id);
                 orders = orders.filter(o => o.id !== id);
+                
+                // 同步刪除行為到 Google Sheet
+                syncToGoogleSheet("delete", orderToDelete);
+                
                 renderTable();
             }
         }
