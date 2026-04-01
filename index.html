@@ -514,6 +514,7 @@
             // 使用 fetch 送出 POST 請求到 Apps Script
             fetch(GOOGLE_APP_SCRIPT_URL, {
                 method: 'POST',
+                mode: 'no-cors',
                 body: JSON.stringify(payload),
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' } // 避開複雜的 CORS 問題
             }).then(response => {
