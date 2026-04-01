@@ -439,17 +439,9 @@
         // 【重要】請先按照說明部署 Google Apps Script，然後將產生的網址貼到這裡：
         const GOOGLE_APP_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbynvaMda7iwXdtcNAnNAN79NZjackBlFy3aPW0V4g9SqlMOOM0Rkz4NKyTVH1eRyfu3Tw/exec';
 
-        // Mock Data inspired by the provided Google Sheet (保留原資料供預覽，但未來會改成讀取/寫入遠端)
-        let orders = [
-            { id: 1, name: "高念平", status: "OK", mainDish: "油蔥舒肥雞霸氣會議餐盒", drink: "桂香青檸粉粿 無糖微冰", note: "冬天不洗澡也要洗衣服吧" },
-            { id: 2, name: "游國楷", status: "OK", mainDish: "原味椒鹽炸雞霸氣會議餐盒", drink: "桂香青檸粉粿 無糖微冰", note: "" },
-            { id: 3, name: "謝楷評", status: "OK", mainDish: "招牌椒麻豬排霸氣會議餐盒", drink: "原片初露青茶 無糖微冰", note: "" },
-            { id: 4, name: "李佳馨", status: "Pending", mainDish: "素食", drink: "原片初露青茶 無糖微冰", note: "都AI" },
-            { id: 5, name: "陳春惠", status: "OK", mainDish: "素食", drink: "原片初露青茶 無糖微冰", note: "" },
-            { id: 6, name: "薛仁奇", status: "OK", mainDish: "油蔥舒肥雞霸氣會議餐盒", drink: "原片初露青茶 無糖微冰", note: "" }
-        ];
-
-        let currentId = 7;
+        // 從遠端資料庫 (Excel) 載入
+        let orders = [];
+        let currentId = 1;
 
         const tableBody = document.getElementById('tableBody');
         const modalBackdrop = document.getElementById('modalBackdrop');
@@ -599,8 +591,32 @@
             if(e.target === modalBackdrop) closeModal();
         });
 
+        function fetchOrders() {
+            tableBody.innerHTML = `<tr><td colspan="7" class="empty-state">連線 Excel 讀取資料中... ⏳</td></tr>`;
+            
+            fetch(GOOGLE_APP_SCRIPT_URL)
+                .then(res => res.json())
+                .then(data => {
+                    orders = data;
+                    let maxId = 0;
+                    data.forEach(o => {
+                        let numId = parseInt(o.id) || 0;
+                        if(numId > maxId) maxId = numId;
+                    });
+                    currentId = maxId + 1;
+                    
+                    // 為了畫面呈現，讓最新的顯示在最上方
+                    orders.reverse();
+                    renderTable();
+                })
+                .catch(err => {
+                    console.error("載入失敗:", err);
+                    tableBody.innerHTML = `<tr><td colspan="7" class="empty-state" style="color:red;">❌ 載入失敗，請確認 Apps Script 是否設定正確</td></tr>`;
+                });
+        }
+
         // Init
-        renderTable();
+        fetchOrders();
     </script>
 </body>
 </html>
